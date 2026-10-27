@@ -1,0 +1,1570 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WaterPrint - 图片与PDF水印工具</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #4f46e5;
+            --primary-dark: #4338ca;
+            --secondary: #10b981;
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border: #334155;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 1.5rem 2rem;
+        }
+
+        header {
+            text-align: center;
+            padding: 1rem 0 1.5rem;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 1.5rem;
+        }
+
+        header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.3rem;
+        }
+
+        header p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 340px 1fr;
+            gap: 1.5rem;
+            height: calc(100vh - 140px);
+        }
+
+        /* 左侧设置面板 */
+        .settings-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+
+        .settings-panel::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .settings-panel::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 2px;
+        }
+
+        .panel {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 1.25rem;
+            border: 1px solid var(--border);
+        }
+
+        .panel-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .panel-title svg {
+            width: 18px;
+            height: 18px;
+            color: var(--primary);
+        }
+
+        /* 上传区域 */
+        .upload-zone {
+            border: 2px dashed var(--border);
+            border-radius: 10px;
+            padding: 1.5rem 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 1rem;
+        }
+
+        .upload-zone:hover {
+            border-color: var(--primary);
+            background: rgba(79, 70, 229, 0.1);
+        }
+
+        .upload-zone.dragover {
+            border-color: var(--primary);
+            background: rgba(79, 70, 229, 0.2);
+        }
+
+        .upload-icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 0.75rem;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .upload-icon svg {
+            width: 24px;
+            height: 24px;
+            color: white;
+        }
+
+        .upload-zone h3 {
+            font-size: 0.95rem;
+            margin-bottom: 0.3rem;
+        }
+
+        .upload-zone p {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        /* 文件列表 */
+        .file-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        .file-list::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .file-list::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 2px;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.5rem;
+            background: rgba(79, 70, 229, 0.1);
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            cursor: pointer;
+        }
+
+        .file-item:hover {
+            border-color: var(--primary);
+        }
+
+        .file-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--primary);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .file-icon.pdf {
+            background: #ef4444;
+        }
+
+        .file-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 6px;
+        }
+
+        .file-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .file-name {
+            font-size: 0.8rem;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .file-size {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+
+        .file-remove {
+            width: 24px;
+            height: 24px;
+            border: none;
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .file-remove:hover {
+            background: rgba(239, 68, 68, 0.4);
+        }
+
+        /* 表单控件 */
+        .form-group {
+            margin-bottom: 0.9rem;
+        }
+
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-bottom: 0.4rem;
+            color: var(--text-secondary);
+        }
+
+        .text-input {
+            width: 100%;
+            padding: 0.6rem 0.8rem;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: border-color 0.2s;
+        }
+
+        .text-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .text-input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        /* 滑块 */
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .slider {
+            flex: 1;
+            -webkit-appearance: none;
+            height: 5px;
+            background: var(--bg-dark);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--primary);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .slider-value {
+            min-width: 45px;
+            text-align: right;
+            font-size: 0.85rem;
+            color: var(--primary);
+            font-weight: 500;
+        }
+
+        /* 位置选择器 */
+        .position-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.4rem;
+        }
+
+        .position-btn {
+            aspect-ratio: 1;
+            border: 2px solid var(--border);
+            background: var(--bg-dark);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .position-btn::after {
+            content: '';
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: var(--border);
+            border-radius: 1px;
+            transition: all 0.2s;
+        }
+
+        .position-btn:hover {
+            border-color: var(--primary);
+        }
+
+        .position-btn:hover::after {
+            background: var(--primary);
+        }
+
+        .position-btn.active {
+            border-color: var(--primary);
+            background: rgba(79, 70, 229, 0.2);
+        }
+
+        .position-btn.active::after {
+            background: var(--primary);
+        }
+
+        /* 位置对应点 */
+        .position-btn[data-position="top-left"]::after { top: 4px; left: 4px; }
+        .position-btn[data-position="top-center"]::after { top: 4px; left: 50%; transform: translateX(-50%); }
+        .position-btn[data-position="top-right"]::after { top: 4px; right: 4px; }
+        .position-btn[data-position="center-left"]::after { top: 50%; left: 4px; transform: translateY(-50%); }
+        .position-btn[data-position="center"]::after { top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .position-btn[data-position="center-right"]::after { top: 50%; right: 4px; transform: translateY(-50%); }
+        .position-btn[data-position="bottom-left"]::after { bottom: 4px; left: 4px; }
+        .position-btn[data-position="bottom-center"]::after { bottom: 4px; left: 50%; transform: translateX(-50%); }
+        .position-btn[data-position="bottom-right"]::after { bottom: 4px; right: 4px; }
+
+        /* 模式选择 */
+        .mode-toggle {
+            display: flex;
+            gap: 0.4rem;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 0.5rem;
+            border: 1px solid var(--border);
+            background: var(--bg-dark);
+            color: var(--text-secondary);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .mode-btn:hover {
+            border-color: var(--primary);
+        }
+
+        .mode-btn.active {
+            border-color: var(--primary);
+            background: var(--primary);
+            color: white;
+        }
+
+        /* 颜色选择 */
+        .color-picker-container {
+            display: flex;
+            gap: 0.4rem;
+            flex-wrap: wrap;
+        }
+
+        .color-btn {
+            width: 32px;
+            height: 32px;
+            border: 2px solid transparent;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .color-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .color-btn.active {
+            border-color: white;
+            box-shadow: 0 0 0 2px var(--primary);
+        }
+
+        /* 预览区 */
+        .preview-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .preview-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .zoom-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .zoom-btn {
+            width: 30px;
+            height: 30px;
+            border: 1px solid var(--border);
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            border-radius: 5px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .zoom-btn:hover {
+            border-color: var(--primary);
+            background: rgba(79, 70, 229, 0.1);
+        }
+
+        .zoom-btn svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .zoom-level {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            min-width: 45px;
+            text-align: center;
+        }
+
+        .fit-btn {
+            padding: 0.3rem 0.6rem;
+            border: 1px solid var(--border);
+            background: var(--bg-dark);
+            color: var(--text-secondary);
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+
+        .fit-btn:hover {
+            border-color: var(--primary);
+            color: var(--text-primary);
+        }
+
+        .fit-btn.active {
+            border-color: var(--primary);
+            background: rgba(79, 70, 229, 0.2);
+            color: var(--primary);
+        }
+
+        .preview-area {
+            flex: 1;
+            background: var(--bg-dark);
+            border-radius: 12px;
+            overflow: auto;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            position: relative;
+            border: 1px solid var(--border);
+            padding: 20px;
+        }
+
+        .preview-area::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        .preview-area::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+
+        .preview-placeholder {
+            text-align: center;
+            color: var(--text-secondary);
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .preview-placeholder svg {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 0.75rem;
+            opacity: 0.5;
+        }
+
+        .preview-wrapper {
+            display: none;
+            position: relative;
+            transition: transform 0.2s ease;
+            transform-origin: top center;
+        }
+
+        #preview-canvas {
+            display: block;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+        }
+
+        /* 缩略图列表 */
+        .thumbnails {
+            display: flex;
+            gap: 0.6rem;
+            padding: 0.75rem;
+            overflow-x: auto;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            margin-top: 1rem;
+            flex-shrink: 0;
+        }
+
+        .thumbnails::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        .thumbnails::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        .thumb-item {
+            position: relative;
+            width: 60px;
+            height: 60px;
+            border-radius: 6px;
+            overflow: hidden;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .thumb-item:hover {
+            border-color: var(--primary);
+        }
+
+        .thumb-item.active {
+            border-color: var(--primary);
+        }
+
+        .thumb-item canvas,
+        .thumb-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .thumb-page {
+            position: absolute;
+            bottom: 3px;
+            right: 3px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            font-size: 0.65rem;
+            padding: 1px 4px;
+            border-radius: 3px;
+        }
+
+        /* 操作按钮 */
+        .actions {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            transition: all 0.3s ease;
+        }
+
+        .btn svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(79, 70, 229, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--primary);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        /* 加载状态 */
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .loading.show {
+            display: flex;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Toast提示 */
+        .toast {
+            position: fixed;
+            bottom: 1.5rem;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+            z-index: 1001;
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        .toast.success {
+            border-color: var(--secondary);
+        }
+
+        .toast.error {
+            border-color: #ef4444;
+        }
+
+        /* 响应式 */
+        @media (max-width: 900px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+
+            .preview-container {
+                min-height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>WaterPrint</h1>
+            <p>为图片和PDF添加个性化水印</p>
+        </header>
+
+        <div class="main-layout">
+            <!-- 设置面板 -->
+            <div class="settings-panel">
+                <div class="panel">
+                    <div class="panel-title">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                        </svg>
+                        上传文件
+                    </div>
+                    
+                    <div class="upload-zone" id="upload-zone">
+                        <div class="upload-icon">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                        </div>
+                        <h3>点击或拖拽上传</h3>
+                        <p>支持 JPG、PNG、GIF、PDF</p>
+                    </div>
+                    <input type="file" id="file-input" class="file-input" multiple accept="image/*,.pdf">
+                    
+                    <div class="file-list" id="file-list"></div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-title">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                        </svg>
+                        水印设置
+                    </div>
+
+                    <div class="form-group">
+                        <label>水印文字</label>
+                        <input type="text" class="text-input" id="watermark-text" placeholder="输入水印文字..." value="DrBin Marker">
+                    </div>
+
+                    <div class="form-group">
+                        <label>水印颜色</label>
+                        <div class="color-picker-container" id="color-picker">
+                            <button class="color-btn" data-color="rgba(255,255,255,0.8)" style="background: rgba(255,255,255,0.8);"></button>
+                            <button class="color-btn" data-color="rgba(0,0,0,0.8)" style="background: rgba(0,0,0,0.8);"></button>
+                            <button class="color-btn" data-color="rgba(239,68,68,0.8)" style="background: rgba(239,68,68,0.8);"></button>
+                            <button class="color-btn" data-color="rgba(59,130,246,0.8)" style="background: rgba(59,130,246,0.8);"></button>
+                            <button class="color-btn" data-color="rgba(34,197,94,0.8)" style="background: rgba(34,197,94,0.8);"></button>
+                            <button class="color-btn active" data-color="rgba(234,179,8,0.8)" style="background: rgba(234,179,8,0.8);"></button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>字体大小</label>
+                        <div class="slider-container">
+                            <input type="range" class="slider" id="font-size" min="12" max="72" value="24">
+                            <span class="slider-value" id="font-size-value">24px</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>透明度</label>
+                        <div class="slider-container">
+                            <input type="range" class="slider" id="opacity" min="10" max="100" value="50">
+                            <span class="slider-value" id="opacity-value">50%</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>旋转角度</label>
+                        <div class="slider-container">
+                            <input type="range" class="slider" id="rotation" min="-45" max="45" value="-30">
+                            <span class="slider-value" id="rotation-value">-30°</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>水印位置</label>
+                        <div class="position-grid" id="position-grid">
+                            <button class="position-btn" data-position="top-left" title="左上"></button>
+                            <button class="position-btn active" data-position="top-center" title="上中"></button>
+                            <button class="position-btn" data-position="top-right" title="右上"></button>
+                            <button class="position-btn" data-position="center-left" title="左中"></button>
+                            <button class="position-btn" data-position="center" title="居中"></button>
+                            <button class="position-btn" data-position="center-right" title="右中"></button>
+                            <button class="position-btn" data-position="bottom-left" title="左下"></button>
+                            <button class="position-btn" data-position="bottom-center" title="下中"></button>
+                            <button class="position-btn" data-position="bottom-right" title="右下"></button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>水印模式</label>
+                        <div class="mode-toggle">
+                            <button class="mode-btn" data-mode="single">单水印</button>
+                            <button class="mode-btn active" data-mode="tiled">平铺</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 预览面板 -->
+            <div class="preview-container">
+                <div class="panel" style="display: flex; flex-direction: column; height: 100%;">
+                    <div class="preview-header">
+                        <div class="panel-title" style="margin-bottom: 0;">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                            </svg>
+                            预览
+                        </div>
+                        <div class="zoom-controls" id="zoom-controls" style="display: none;">
+                            <button class="zoom-btn" id="zoom-out" title="缩小">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+                                </svg>
+                            </button>
+                            <span class="zoom-level" id="zoom-level">100%</span>
+                            <button class="zoom-btn" id="zoom-in" title="放大">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                </svg>
+                            </button>
+                            <button class="fit-btn active" id="fit-btn">适应</button>
+                        </div>
+                    </div>
+                    
+                    <div class="preview-area" id="preview-area">
+                        <div class="preview-placeholder" id="preview-placeholder">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                            <p>上传文件后预览将显示在这里</p>
+                        </div>
+                        <div class="preview-wrapper" id="preview-wrapper">
+                            <canvas id="preview-canvas"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="thumbnails" id="thumbnails"></div>
+
+                    <div class="actions">
+                        <button class="btn btn-secondary" id="btn-preview" disabled>
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                            </svg>
+                            刷新预览
+                        </button>
+                        <button class="btn btn-primary" id="btn-download" disabled>
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                            </svg>
+                            下载文件
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        const state = {
+            files: [],
+            currentFileIndex: 0,
+            pdfDoc: null,
+            pdfPages: [],
+            settings: {
+                text: "DrBin Marker",
+                color: 'rgba(234,179,8,0.8)',
+                fontSize: 24,
+                opacity: 50,
+                rotation: -30,
+                position: 'top-center',
+                mode: 'tiled'
+            },
+            preview: {
+                zoom: 100,
+                isFit: true,
+                baseWidth: 0,
+                baseHeight: 0
+            }
+        };
+
+        const elements = {
+            uploadZone: document.getElementById('upload-zone'),
+            fileInput: document.getElementById('file-input'),
+            fileList: document.getElementById('file-list'),
+            watermarkText: document.getElementById('watermark-text'),
+            colorPicker: document.getElementById('color-picker'),
+            fontSize: document.getElementById('font-size'),
+            fontSizeValue: document.getElementById('font-size-value'),
+            opacity: document.getElementById('opacity'),
+            opacityValue: document.getElementById('opacity-value'),
+            rotation: document.getElementById('rotation'),
+            rotationValue: document.getElementById('rotation-value'),
+            positionGrid: document.getElementById('position-grid'),
+            modeToggle: document.querySelector('.mode-toggle'),
+            previewArea: document.getElementById('preview-area'),
+            previewPlaceholder: document.getElementById('preview-placeholder'),
+            previewCanvas: document.getElementById('preview-canvas'),
+            previewWrapper: document.getElementById('preview-wrapper'),
+            thumbnails: document.getElementById('thumbnails'),
+            btnPreview: document.getElementById('btn-preview'),
+            btnDownload: document.getElementById('btn-download'),
+            loading: document.getElementById('loading'),
+            toast: document.getElementById('toast'),
+            zoomControls: document.getElementById('zoom-controls'),
+            zoomIn: document.getElementById('zoom-in'),
+            zoomOut: document.getElementById('zoom-out'),
+            zoomLevel: document.getElementById('zoom-level'),
+            fitBtn: document.getElementById('fit-btn')
+        };
+
+        function showToast(message, type = 'success') {
+            elements.toast.textContent = message;
+            elements.toast.className = `toast ${type} show`;
+            setTimeout(() => elements.toast.classList.remove('show'), 3000);
+        }
+
+        function showLoading(show) {
+            elements.loading.classList.toggle('show', show);
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        function renderFileList() {
+            elements.fileList.innerHTML = state.files.map((file, index) => {
+                const isImage = file.type.startsWith('image/');
+                return `
+                    <div class="file-item" onclick="selectFile(${index})">
+                        <div class="file-icon ${isImage ? '' : 'pdf'}">
+                            ${isImage ? `<img src="${file.data}" alt="preview">` : `
+                                <svg fill="white" viewBox="0 0 24 24" style="width:16px;height:16px">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                    <polyline points="14 2 14 8 20 8" fill="none" stroke="white" stroke-width="2"/>
+                                </svg>
+                            `}
+                        </div>
+                        <div class="file-info">
+                            <div class="file-name">${file.name}</div>
+                            <div class="file-size">${formatFileSize(file.size)}</div>
+                        </div>
+                        <button class="file-remove" onclick="event.stopPropagation(); removeFile(${index})">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px;height:14px">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                `;
+            }).join('');
+
+            const hasFiles = state.files.length > 0;
+            elements.btnPreview.disabled = !hasFiles;
+            elements.btnDownload.disabled = !hasFiles;
+            elements.zoomControls.style.display = hasFiles ? 'flex' : 'none';
+        }
+
+        function selectFile(index) {
+            state.currentFileIndex = index;
+            processCurrentFile();
+        }
+
+        function removeFile(index) {
+            state.files.splice(index, 1);
+            if (state.currentFileIndex >= state.files.length) {
+                state.currentFileIndex = Math.max(0, state.files.length - 1);
+            }
+            renderFileList();
+            if (state.files.length > 0) {
+                renderPreview();
+            } else {
+                elements.previewPlaceholder.style.display = 'block';
+                elements.previewWrapper.style.display = 'none';
+                elements.thumbnails.innerHTML = '';
+            }
+        }
+
+        async function handleFiles(files) {
+            showLoading(true);
+            
+            for (const file of files) {
+                const isImage = file.type.startsWith('image/');
+                const isPDF = file.type === 'application/pdf';
+                
+                if (isImage) {
+                    const data = await readFileAsDataURL(file);
+                    state.files.push({
+                        name: file.name,
+                        size: file.size,
+                        type: file.type,
+                        data: data,
+                        isImage: true
+                    });
+                } else if (isPDF) {
+                    const arrayBuffer = await file.arrayBuffer();
+                    // 转换为Uint8Array存储，避免ArrayBuffer detached问题
+                    state.files.push({
+                        name: file.name,
+                        size: file.size,
+                        type: 'application/pdf',
+                        data: new Uint8Array(arrayBuffer),
+                        isImage: false,
+                        isPDF: true
+                    });
+                }
+            }
+
+            if (state.files.length > 0) {
+                state.currentFileIndex = state.files.length - 1;
+                await processCurrentFile();
+            }
+
+            renderFileList();
+            showLoading(false);
+        }
+
+        function readFileAsDataURL(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function processCurrentFile() {
+            const file = state.files[state.currentFileIndex];
+            if (!file) return;
+
+            showLoading(true);
+
+            if (file.isPDF) {
+                await loadPDFPreview(file);
+            } else {
+                renderPreview();
+            }
+
+            showLoading(false);
+        }
+
+        async function loadPDFPreview(file) {
+            try {
+                const data = new Uint8Array(file.data);
+                state.pdfDoc = await pdfjsLib.getDocument({ data }).promise;
+                state.pdfPages = [];
+
+                elements.thumbnails.innerHTML = '';
+
+                for (let i = 1; i <= state.pdfDoc.numPages; i++) {
+                    const page = await state.pdfDoc.getPage(i);
+                    const scale = 0.25;
+                    const viewport = page.getViewport({ scale });
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = viewport.width;
+                    canvas.height = viewport.height;
+
+                    await page.render({
+                        canvasContext: canvas.getContext('2d'),
+                        viewport: viewport
+                    }).promise;
+
+                    const thumbItem = document.createElement('div');
+                    thumbItem.className = `thumb-item ${i === 1 ? 'active' : ''}`;
+                    thumbItem.innerHTML = `<canvas></canvas><span class="thumb-page">${i}</span>`;
+                    thumbItem.querySelector('canvas').getContext('2d').drawImage(canvas, 0, 0);
+                    
+                    thumbItem.addEventListener('click', () => {
+                        document.querySelectorAll('.thumb-item').forEach(t => t.classList.remove('active'));
+                        thumbItem.classList.add('active');
+                        renderPDFPage(i);
+                    });
+
+                    elements.thumbnails.appendChild(thumbItem);
+                    state.pdfPages.push({ page, canvas });
+                }
+
+                await renderPDFPage(1);
+
+            } catch (error) {
+                console.error('PDF处理错误:', error);
+                showToast('PDF处理失败', 'error');
+            }
+        }
+
+        async function renderPDFPage(pageNum) {
+            const pageData = state.pdfPages[pageNum - 1];
+            if (!pageData) return;
+
+            const scale = 1.2;
+            const viewport = pageData.page.getViewport({ scale });
+
+            state.preview.baseWidth = viewport.width;
+            state.preview.baseHeight = viewport.height;
+
+            elements.previewPlaceholder.style.display = 'none';
+            elements.previewWrapper.style.display = 'block';
+            elements.previewCanvas.width = viewport.width;
+            elements.previewCanvas.height = viewport.height;
+
+            const ctx = elements.previewCanvas.getContext('2d');
+            
+            await pageData.page.render({
+                canvasContext: ctx,
+                viewport: viewport
+            }).promise;
+
+            applyWatermark(ctx, viewport.width, viewport.height);
+            updatePreviewTransform();
+        }
+
+        function renderPreview() {
+            const file = state.files[state.currentFileIndex];
+            if (!file || !file.isImage) return;
+
+            const img = new Image();
+            img.onload = () => {
+                const maxWidth = elements.previewArea.clientWidth - 40;
+                const maxHeight = elements.previewArea.clientHeight - 40;
+                let fitScale = Math.min(maxWidth / img.width, maxHeight / img.height, 1);
+
+                state.preview.baseWidth = img.width * fitScale;
+                state.preview.baseHeight = img.height * fitScale;
+                state.preview.isFit = true;
+                state.preview.zoom = 100;
+                updateZoomUI();
+
+                elements.previewPlaceholder.style.display = 'none';
+                elements.previewWrapper.style.display = 'block';
+                elements.previewCanvas.width = img.width * fitScale;
+                elements.previewCanvas.height = img.height * fitScale;
+
+                const ctx = elements.previewCanvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, img.width * fitScale, img.height * fitScale);
+
+                applyWatermark(ctx, img.width * fitScale, img.height * fitScale);
+                updatePreviewTransform();
+            };
+            img.src = file.data;
+        }
+
+        function applyWatermark(ctx, width, height) {
+            const { text, color, fontSize, opacity, rotation, position, mode } = state.settings;
+
+            if (!text) return;
+
+            ctx.save();
+
+            const baseColor = color.replace(/[\d.]+\)$/, `${opacity / 100})`);
+            ctx.fillStyle = baseColor;
+            ctx.font = `bold ${fontSize}px Arial, sans-serif`;
+            ctx.textBaseline = 'top';
+
+            const metrics = ctx.measureText(text);
+            const textWidth = metrics.width;
+            const textHeight = fontSize * 1.2;
+            const padding = 30;
+
+            if (mode === 'single') {
+                let x, y;
+                
+                if (position.includes('left')) {
+                    x = padding;
+                } else if (position.includes('right')) {
+                    x = width - textWidth - padding;
+                } else {
+                    x = (width - textWidth) / 2;
+                }
+                
+                if (position.includes('top')) {
+                    y = padding;
+                } else if (position.includes('bottom')) {
+                    y = height - textHeight - padding;
+                } else {
+                    y = (height - textHeight) / 2;
+                }
+
+                ctx.translate(x + textWidth / 2, y + textHeight / 2);
+                ctx.rotate(rotation * Math.PI / 180);
+                ctx.fillText(text, -textWidth / 2, -textHeight / 2);
+            } else {
+                const spacingX = textWidth + fontSize * 2;
+                const spacingY = textHeight + fontSize * 2;
+                ctx.translate(width / 2, height / 2);
+                ctx.rotate(rotation * Math.PI / 180);
+
+                const cols = Math.ceil(width / spacingX) + 2;
+                const rows = Math.ceil(height / spacingY) + 2;
+                const offsetX = -cols * spacingX / 2;
+                const offsetY = -rows * spacingY / 2;
+
+                for (let row = 0; row < rows; row++) {
+                    for (let col = 0; col < cols; col++) {
+                        const x = offsetX + col * spacingX;
+                        const y = offsetY + row * spacingY;
+                        ctx.fillText(text, x, y);
+                    }
+                }
+            }
+
+            ctx.restore();
+        }
+
+        function updatePreviewTransform() {
+            const scale = state.preview.zoom / 100;
+            elements.previewWrapper.style.transform = `scale(${scale})`;
+        }
+
+        function updateZoomUI() {
+            elements.zoomLevel.textContent = state.preview.zoom + '%';
+            elements.fitBtn.classList.toggle('active', state.preview.isFit);
+        }
+
+        function zoomIn() {
+            if (state.preview.zoom < 400) {
+                state.preview.zoom += 25;
+                state.preview.isFit = false;
+                updateZoomUI();
+                updatePreviewTransform();
+            }
+        }
+
+        function zoomOut() {
+            if (state.preview.zoom > 25) {
+                state.preview.zoom -= 25;
+                state.preview.isFit = false;
+                updateZoomUI();
+                updatePreviewTransform();
+            }
+        }
+
+        function fitToView() {
+            state.preview.zoom = 100;
+            state.preview.isFit = true;
+            updateZoomUI();
+            updatePreviewTransform();
+        }
+
+        async function downloadFiles() {
+            if (state.files.length === 0) return;
+
+            showLoading(true);
+
+            try {
+                if (state.files.length === 1) {
+                    // 单文件直接下载
+                    const file = state.files[0];
+                    if (file.isPDF) {
+                        const result = await processPDF(file);
+                        await triggerDownload(result.blob, result.fileName);
+                    } else {
+                        const result = await processImage(file);
+                        await triggerDownload(result.blob, result.fileName);
+                    }
+                } else {
+                    // 多文件打包为ZIP
+                    const zip = new JSZip();
+                    for (let i = 0; i < state.files.length; i++) {
+                        const file = state.files[i];
+                        if (file.isPDF) {
+                            const result = await processPDF(file);
+                            zip.file(result.fileName, result.blob);
+                        } else {
+                            const result = await processImage(file);
+                            zip.file(result.fileName, result.blob);
+                        }
+                    }
+                    const zipBlob = await zip.generateAsync({ type: 'blob' });
+                    await triggerDownload(zipBlob, 'BinMark_files.zip');
+                }
+
+                showLoading(false);
+                showToast(state.files.length === 1 ? '文件已下载' : `成功打包 ${state.files.length} 个文件`);
+            } catch (error) {
+                showLoading(false);
+                showToast('下载失败: ' + error.message, 'error');
+            }
+        }
+
+        function triggerDownload(blob, fileName) {
+            const blobUrl = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = fileName;
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            setTimeout(() => {
+                document.body.removeChild(link);
+                URL.revokeObjectURL(blobUrl);
+            }, 1000);
+        }
+
+        function processImage(file) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+
+                    ctx.drawImage(img, 0, 0);
+                    applyWatermark(ctx, img.width, img.height);
+
+                    const ext = file.name.split('.').pop();
+                    const baseName = file.name.replace(`.${ext}`, '');
+                    const fileName = `${baseName}_BinMark.${ext}`;
+
+                    canvas.toBlob((blob) => {
+                        if (blob) {
+                            resolve({ blob, fileName });
+                        } else {
+                            reject(new Error('图片生成失败'));
+                        }
+                    }, ext === 'png' ? 'image/png' : 'image/jpeg', 0.95);
+                };
+                img.onerror = () => reject(new Error('图片加载失败'));
+                img.src = file.data;
+            });
+        }
+
+        async function processPDF(file) {
+            try {
+                if (typeof PDFLib === 'undefined') {
+                    throw new Error('PDFLib库未加载');
+                }
+
+                const data = new Uint8Array(file.data);
+                const pdfDoc = await pdfjsLib.getDocument({ data }).promise;
+                const numPages = pdfDoc.numPages;
+
+                const { PDFDocument } = PDFLib;
+                const pdfLibDoc = await PDFDocument.create();
+
+                for (let i = 1; i <= numPages; i++) {
+                    const page = await pdfDoc.getPage(i);
+                    const scale = 2;
+                    const viewport = page.getViewport({ scale });
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = viewport.width;
+                    canvas.height = viewport.height;
+                    const ctx = canvas.getContext('2d');
+
+                    await page.render({
+                        canvasContext: ctx,
+                        viewport: viewport
+                    }).promise;
+
+                    applyWatermark(ctx, viewport.width, viewport.height);
+
+                    const imgData = canvas.toDataURL('image/png');
+                    const pngImage = await pdfLibDoc.embedPng(imgData);
+
+                    const pdfPage = pdfLibDoc.addPage([viewport.width / scale, viewport.height / scale]);
+                    pdfPage.drawImage(pngImage, {
+                        x: 0, y: 0,
+                        width: viewport.width / scale,
+                        height: viewport.height / scale
+                    });
+                }
+
+                const pdfBytes = await pdfLibDoc.save();
+                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                const baseName = file.name.replace('.pdf', '');
+                const fileName = `${baseName}_BinMark.pdf`;
+
+                return { blob, fileName };
+            } catch (error) {
+                console.error('PDF处理错误:', error);
+                throw error;
+            }
+        }
+
+        elements.uploadZone.addEventListener('click', () => elements.fileInput.click());
+        elements.fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+        elements.uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            elements.uploadZone.classList.add('dragover');
+        });
+        elements.uploadZone.addEventListener('dragleave', () => {
+            elements.uploadZone.classList.remove('dragover');
+        });
+        elements.uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            elements.uploadZone.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+
+        // 防抖定时器
+        let previewUpdateTimer = null;
+        
+        function schedulePreviewUpdate() {
+            if (previewUpdateTimer) clearTimeout(previewUpdateTimer);
+            previewUpdateTimer = setTimeout(() => {
+                if (state.files.length > 0) {
+                    updateCurrentPreview();
+                }
+            }, 300); // 300ms防抖
+        }
+
+        elements.watermarkText.addEventListener('input', (e) => {
+            state.settings.text = e.target.value;
+            schedulePreviewUpdate();
+        });
+
+        elements.colorPicker.addEventListener('click', (e) => {
+            const btn = e.target.closest('.color-btn');
+            if (btn) {
+                document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                state.settings.color = btn.dataset.color;
+                schedulePreviewUpdate();
+            }
+        });
+
+        elements.fontSize.addEventListener('input', (e) => {
+            state.settings.fontSize = parseInt(e.target.value);
+            elements.fontSizeValue.textContent = e.target.value + 'px';
+            schedulePreviewUpdate();
+        });
+
+        elements.opacity.addEventListener('input', (e) => {
+            state.settings.opacity = parseInt(e.target.value);
+            elements.opacityValue.textContent = e.target.value + '%';
+            schedulePreviewUpdate();
+        });
+
+        elements.rotation.addEventListener('input', (e) => {
+            state.settings.rotation = parseInt(e.target.value);
+            elements.rotationValue.textContent = e.target.value + '°';
+            schedulePreviewUpdate();
+        });
+
+        elements.positionGrid.addEventListener('click', (e) => {
+            const btn = e.target.closest('.position-btn');
+            if (btn) {
+                document.querySelectorAll('.position-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                state.settings.position = btn.dataset.position;
+                schedulePreviewUpdate();
+            }
+        });
+
+        elements.modeToggle.addEventListener('click', (e) => {
+            const btn = e.target.closest('.mode-btn');
+            if (btn) {
+                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                state.settings.mode = btn.dataset.mode;
+                schedulePreviewUpdate();
+            }
+        });
+
+        // 统一预览更新函数
+        function updateCurrentPreview() {
+            const file = state.files[state.currentFileIndex];
+            if (file) {
+                if (file.isPDF) {
+                    // 获取当前选中的PDF页面
+                    const activeThumb = document.querySelector('.thumb-item.active');
+                    const pageNum = activeThumb ? parseInt(activeThumb.querySelector('.thumb-page').textContent) : 1;
+                    renderPDFPage(pageNum);
+                } else {
+                    renderPreview();
+                }
+            }
+        }
+
+        elements.btnPreview.addEventListener('click', updateCurrentPreview);
+        elements.btnDownload.addEventListener('click', downloadFiles);
+        elements.zoomIn.addEventListener('click', zoomIn);
+        elements.zoomOut.addEventListener('click', zoomOut);
+        elements.fitBtn.addEventListener('click', fitToView);
+
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                if (e.key === '=' || e.key === '+') {
+                    e.preventDefault();
+                    zoomIn();
+                } else if (e.key === '-') {
+                    e.preventDefault();
+                    zoomOut();
+                } else if (e.key === '0') {
+                    e.preventDefault();
+                    fitToView();
+                }
+            }
+        });
+
+        showToast('欢迎使用 WaterPrint！');
+        
+        // 检查库是否加载
+        if (typeof PDFLib === 'undefined') {
+            console.error('PDFLib未加载，尝试重新加载...');
+            const script = document.createElement('script');
+            script.src = 'https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js';
+            script.onload = () => console.log('PDFLib重新加载成功');
+            script.onerror = () => console.error('PDFLib重新加载失败');
+            document.head.appendChild(script);
+        } else {
+            console.log('PDFLib加载成功');
+        }
+    </script>
+</body>
+</html>
