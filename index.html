@@ -25,6 +25,15 @@
             --border: #334155;
         }
 
+        /* 亮色（bright）主题 */
+        [data-theme="bright"] {
+            --bg-dark: #f1f5f9;
+            --bg-card: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border: #cbd5e1;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: var(--bg-dark);
@@ -40,6 +49,7 @@
         }
 
         header {
+            position: relative;
             text-align: center;
             padding: 1rem 0 1.5rem;
             border-bottom: 1px solid var(--border);
@@ -59,6 +69,44 @@
         header p {
             color: var(--text-secondary);
             font-size: 0.9rem;
+        }
+
+        /* 主题切换按钮 */
+        .theme-toggle {
+            position: absolute;
+            top: 1rem;
+            right: 0;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .theme-toggle:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .theme-toggle svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        /* 默认暗色：显示太阳（点击可切亮色） */
+        .icon-moon { display: none; }
+        [data-theme="bright"] .icon-sun { display: none; }
+        [data-theme="bright"] .icon-moon { display: block; }
+
+        /* 亮色模式下颜色按钮的选中白边框改为深色，便于辨识 */
+        [data-theme="bright"] .color-btn.active {
+            border-color: var(--text-primary);
         }
 
         .main-layout {
@@ -746,6 +794,14 @@
 <body>
     <div class="container">
         <header>
+            <button class="theme-toggle" id="theme-toggle" title="切换深色/亮色主题">
+                <svg class="icon-sun" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                </svg>
+                <svg class="icon-moon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                </svg>
+            </button>
             <h1>WaterPrint</h1>
             <p>为图片和PDF添加个性化水印</p>
         </header>
@@ -1339,6 +1395,17 @@
             }
         }
 
+        // 清理水印文字中不能用于文件名的字符，并限制长度
+        function safeFileNamePart(text) {
+            return (text || '').replace(/[\/\\:*?"<>|]/g, '').trim().slice(0, 50);
+        }
+
+        // 生成文件名后缀：优先用水印文字，水印文字为空时回退 BinMark
+        function watermarkSuffix() {
+            const wm = safeFileNamePart(state.settings.text);
+            return wm ? '_' + wm : '_BinMark';
+        }
+
         function triggerDownload(blob, fileName) {
             const blobUrl = URL.createObjectURL(blob);
             const link = document.createElement('a');
@@ -1367,7 +1434,7 @@
 
                     const ext = file.name.split('.').pop();
                     const baseName = file.name.replace(`.${ext}`, '');
-                    const fileName = `${baseName}_BinMark.${ext}`;
+                    const fileName = `${baseName}${watermarkSuffix()}.${ext}`;
 
                     canvas.toBlob((blob) => {
                         if (blob) {
@@ -1426,7 +1493,7 @@
                 const pdfBytes = await pdfLibDoc.save();
                 const blob = new Blob([pdfBytes], { type: 'application/pdf' });
                 const baseName = file.name.replace('.pdf', '');
-                const fileName = `${baseName}_BinMark.pdf`;
+                const fileName = `${baseName}${watermarkSuffix()}.pdf`;
 
                 return { blob, fileName };
             } catch (error) {
@@ -1551,6 +1618,29 @@
                 }
             }
         });
+
+        // 主题切换：dark（默认） / bright，并记忆选择
+        (function initTheme() {
+            const toggle = document.getElementById('theme-toggle');
+            const root = document.documentElement;
+            let saved = 'dark';
+            try {
+                saved = localStorage.getItem('wprint-theme') || 'dark';
+            } catch (e) {
+                console.warn('无法读取主题设置，使用默认深色');
+            }
+            root.dataset.theme = saved;
+
+            toggle.addEventListener('click', () => {
+                const next = root.dataset.theme === 'bright' ? 'dark' : 'bright';
+                root.dataset.theme = next;
+                try {
+                    localStorage.setItem('wprint-theme', next);
+                } catch (e) {
+                    console.warn('无法保存主题设置');
+                }
+            });
+        })();
 
         showToast('欢迎使用 WaterPrint！');
         
