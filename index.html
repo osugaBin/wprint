@@ -109,9 +109,72 @@
             border-color: var(--text-primary);
         }
 
+        /* 赞赏（Buy Me a Coffee）区域 */
+        .bmc-sidebar {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-y: auto;
+            align-self: stretch;
+        }
+
+        .bmc-sidebar-title {
+            font-size: 1rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            color: #f46a5c;
+            padding-bottom: 0.75rem;
+            text-align: center;
+            width: 100%;
+        }
+
+        .bmc-sidebar-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.6rem;
+            width: 100%;
+        }
+
+        .bmc-sidebar-icon {
+            width: 70%;
+            max-width: 220px;
+            height: auto;
+            object-fit: contain;
+            margin-bottom: 0.2rem;
+        }
+
+        /* 收款码为竖版长图，按宽度等比缩放完整显示，避免裁剪导致无法扫描 */
+        .bmc-sidebar-qr {
+            width: 140px;
+            height: auto;
+            max-height: 240px;
+            object-fit: contain;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            padding: 6px;
+            background: white;
+        }
+
+        .bmc-sidebar-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-align: center;
+            margin-top: -0.15rem;
+        }
+
+        @media (max-width: 768px) {
+            .bmc-sidebar-qr {
+                width: 130px;
+            }
+            .bmc-sidebar-icon {
+                width: 60%;
+            }
+        }
+
         .main-layout {
             display: grid;
-            grid-template-columns: 340px 1fr;
+            grid-template-columns: 340px 1fr 200px;
             gap: 1.5rem;
             height: calc(100vh - 140px);
         }
@@ -960,6 +1023,18 @@
                             下载文件
                         </button>
                     </div>
+                </div>
+            </div>
+
+            <!-- 赞赏（页面右侧竖条） -->
+            <div class="panel bmc-sidebar">
+                <div class="bmc-sidebar-title">赞赏我的开发</div>
+                <div class="bmc-sidebar-content">
+                    <img src="buycof.png" alt="Coffee" class="bmc-sidebar-icon">
+                    <img src="wechat.png" alt="微信" class="bmc-sidebar-qr">
+                    <div class="bmc-sidebar-label">微信</div>
+                    <img src="alipay.png" alt="支付宝" class="bmc-sidebar-qr">
+                    <div class="bmc-sidebar-label">支付宝</div>
                 </div>
             </div>
         </div>
